@@ -129,6 +129,8 @@ abstract class BasePersistentEntity[FO <: BaseFieldsObject[String, FO]: ClassTag
       maybeSnapshot
     }
     if (event.version.isDefined) {
+      // Set Version(A UUID) For Which Event u need to have strong Consistency. Put a timeout also to wait for the subscription Other wise that request will never complete and will
+      // Keep on wiaitng in case of any error.
       // Use a Subscriber of a messaging system to listen for a pattern "entityType-id-evnet.version"
       // This Pattern will be published with updated state after the ReadJournal is updated.
       // This publish Subscriber should Publish/Subscribe across networks. Not Concentrated on Local Machine Only since it Could happen that event is persisted on

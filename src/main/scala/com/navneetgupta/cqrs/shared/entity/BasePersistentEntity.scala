@@ -118,13 +118,34 @@ abstract class BasePersistentEntity[FO <: BaseFieldsObject[String, FO]: ClassTag
 
   def newDeleteEvent: Option[BaseEvent] = None
 
+  //This handler is eventually Consistent. I.E. this will return the current state as response. It will not wait for Read journal to Get updated. So if Some API call is
+  // Directly getting data from ReadJournal The state will differ. with Read journal returning old data.
+
+  // We can make some what Strong Consistency using Publish/Subscribe Messaging System to return always readJournal Updated State only
   def handleEventAndRespond[A](respectDeleted: Boolean = true)(event: BaseEvent) = {
     handleEvent(event)
     if (snapshotAfterCount.isDefined) {
       eventsSinceLastSnapshot += 1
       maybeSnapshot
     }
-    sender() ! stateResponse(respectDeleted)
+    if (event.version.isDefined) {
+      // Use a Subscriber of a messaging system to listen for a pattern "entityType-id-evnet.version"
+      // This Pattern will be published with updated state after the ReadJournal is updated.
+      // This publish Subscriber should Publish/Subscribe across networks. Not Concentrated on Local Machine Only since it Could happen that event is persisted on
+      // One node and REad Journal is updated at another node in a clustering Environment.
+      // MEssaging System such as Redis Pub/Sub , Apache Kafka etc. Could be used easily.
+    } else {
+      sender() ! stateResponse(respectDeleted)
+    }
+  }
+
+  def handleEventAndRespondWithStrongConstency[A](respectDeleted: Boolean = true)(event: BaseEvent) = {
+    handleEvent(event)
+    if (snapshotAfterCount.isDefined) {
+      eventsSinceLastSnapshot += 1
+      maybeSnapshot
+    }
+
   }
 
   def stateResponse(respectDeleted: Boolean = true): ServiceResult[FO] = {
